@@ -20,6 +20,8 @@ class Neuron(object):
     def set_desired_value(self, output_node, value):
         self.back_propogate_dict[output_node] = value #output_node, consist of output and beta
 
+    def setup_bias_node(self, bias_node):
+        self.input_node_dict[bias_node] = None
 
     def set_learning_rate(self, rate):
         self.learning_rate = rate
@@ -28,7 +30,6 @@ class Neuron(object):
     def setup_input(self, input_node_list):
         for node in input_node_list:
             self.input_node_dict[node] = None
-
 
     def input(self, input_node, value):
         self.input_node_dict[input_node] = value
@@ -39,11 +40,6 @@ class Neuron(object):
     def init_input_node_dict(self):
         for input_node in self.input_node_dict.keys():
             self.input_node_dict[input_node] = None
-
-    def set_none(self):
-        for node in self.input_node_dict.keys():
-            self.input_node_dict[node] = None
-
 
     def output(self, output_value):
         for output_node, weight in self.output_node_dict.items():
@@ -154,22 +150,35 @@ class Output_neuron(Neuron):
             input_node.receive_feedback(self, self.output_value, self.beta)
         self.increment_epoch()
 
+
 def construct_network(number_input, number_hidden, number_output, learning_rate):
     input_neurons = [Input_neuron() for i in range(number_input)] #generate input nodes
     hidden_neurons = [Neuron() for i in range(number_hidden)]   #generate hidden nodes
     output_neurons = [Output_neuron() for i in range(number_output)] #generate output nodes
+    bias_neurons = []
     #it's a one layer network, don't expect too much
     for node in input_neurons:
         node.setup_output(hidden_neurons)               #build output connection between input nodes and hidden nodes
         node.set_learning_rate(learning_rate)           #set input nodes' learning rate
     for node in hidden_neurons:
+
         node.setup_output(output_neurons)               #build output connection between hidden nodes and output nodes
         node.setup_input(input_neurons)                 #build input connection between input nodes and hidden nodes
         node.set_learning_rate(learning_rate)           #set hidden nodes' learning rate
+        bias = Input_neuron()
+        bias.setup_output([node])
+        node.setup_bias_node(bias)
+        bias_neurons.append(bias)
     for node in output_neurons:
         node.setup_input(hidden_neurons)                #build input connection between hidden nodes and output nodes
         node.set_learning_rate(learning_rate)           #set output nodes' learning rate
-    return input_neurons, hidden_neurons, output_neurons
+        bias = Input_neuron()
+        bias.setup_output([node])
+        node.setup_bias_node(bias)
+        bias_neurons.append(bias)
+    return input_neurons, hidden_neurons, output_neurons, bias_neurons
+
+def show_structure(input_neurons, hidden_neurons, output_neurons, bias_neurons):
 
 def back_propogate(output_neurons, desired_value):
     for node in output_neurons:
@@ -178,20 +187,23 @@ def back_propogate(output_neurons, desired_value):
         node.back_propogation()
 
 
-def epoches(input_neurons, output_neurons, data1, data2, target):
+def epoches(input_neurons, bias_neurons, output_neurons, data1, data2, target):
     #print "This is input data1 = %d, data2 = %d" % (data1, data2)
     input_neurons[0].input(data1)
     input_neurons[1].input(data2)
+    for node in bias_neurons:
+        node.input(1)
     back_propogate(output_neurons, target)
     #output_neurons[0].output()
 
 if __name__ == "__main__":
-    input_neurons, hidden_neurons, output_neurons = construct_network(2, 1, 1, 0.2)
-    for i in range(1000):
-        epoches(input_neurons, output_neurons, 1, 1, 0)
-        #epoches(input_neurons, output_neurons, 0, 0, 0)
-        epoches(input_neurons, output_neurons, 1, 0, 1)
-        #epoches(input_neurons, output_neurons, 0, 1, 1)
+    input_neurons, hidden_neurons, output_neurons, bias_neurons = construct_network(2, 1, 1, 0.2)
+'''
+    for i in range(100):
+        epoches(input_neurons, bias_neurons, output_neurons, 1, 1, 0)
+        epoches(input_neurons, bias_neurons, output_neurons, 0, 0, 0)
+        epoches(input_neurons, bias_neurons, output_neurons, 1, 0, 1)
+        epoches(input_neurons, bias_neurons, output_neurons, 0, 1, 1)
 
     print "===================TESTING!!!!!===================="
 
@@ -200,17 +212,14 @@ if __name__ == "__main__":
     input_neurons[1].input(1)
     output_neurons[0].output()
 
-    '''
     print "INPUT 0 an 0"
     input_neurons[0].input(0)
     input_neurons[1].input(0)
     output_neurons[0].output()
-    '''
     print "INPUT 1 an 0"
     input_neurons[0].input(1)
     input_neurons[1].input(0)
     output_neurons[0].output()
-    '''
     print "INPUT 0 an 1"
     input_neurons[0].input(0)
     input_neurons[1].input(1)
