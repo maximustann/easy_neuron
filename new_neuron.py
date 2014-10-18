@@ -7,10 +7,17 @@ class Neuron(object):
         self.learning_rate = None
         self.beta = 0
         self.output_value = 0
+        self.bias = 1
+        self.input_nodes_num = 0
+        self.input_connection_id = []
+        self.receive_value = 0
+        self.count = 0
+        self.input_connection = []
+        self.output_connection = []
     def set_learning_rate(self, learning_rate):
         self.learning_rate = learning_rate
-    def sigmoid(self, value_list):
-        self.output_value = 1.0 / (1.0 + math.exp(-sum(value_list)))
+    def sigmoid(self):
+        self.output_value = 1.0 / (1.0 + math.exp(-(self.receive_value + self.bias)))
     def cal_beta(self, weight, higher_output, higher_beta):
         self.beta += weight * (1 - higher_output) * higher_beta
     def return_beta(self):
@@ -22,6 +29,35 @@ class Neuron(object):
         return delta_weight
     def return_output(self):
         return self.output_value
+    def adjust_input_nodes_num(self, num):
+        self.input_nodes_num = num
+    def adjust_bias(self, higher_output, higher_beta):
+        delta_bias = self.learning_rate * self.bias * (1 - higher_output) * higher_beta
+        self.bias += delta_bias
+    def notify_input(self, conn):
+        if conn not in self.input_connection:
+            self.input_connection.append(conn)
+            self.input_nodes_num += 1
+    def notify_output(self, conn):
+        if conn not in self.output_connection:
+            self.output_connection.append(conn)
+
+    def receive_input(self, value):
+        self.receive_value += value
+        self.count += 1
+        if self.count == self.input_nodes_num:
+            self.sigmoid()
+            self.count = 0
+            self.send()
+
+    def send(self):
+        for output_conn in self.output_connection:
+            output_conn.receive_send_to_output(self.output_value)
+
+    def backpropagation(self, weight, higher_output, higher_beta):
+        #self.cal_beta()
+        #for conn in self.input_connection:
+            #conn.backpropagation(self.output_value, self.beta)
 
 class Input_Nodes(Neuron):
     def __init__(self):
@@ -31,7 +67,8 @@ class Input_Nodes(Neuron):
         self.input_value = input_num
     def return_input(self):
         return self.input_value
-
+    def start(self):
+        self.send()
 class Output_Nodes(Neuron):
     def __init__(self):
         super(Output_Nodes, self).__init__()
@@ -40,16 +77,33 @@ class Output_Nodes(Neuron):
         self.desired = desired
     def cal_beta(self):
         self.beta = self.desired - self.output_value
+    def receive_input(self, value):
+        self.receive_value += value
+        self.count += 1
+        if self.count == self.input_nodes_num:
+            self.sigmoid()
+            self.count = 0
+            self.output()
+    def output(self):
+        return self.output_value
+
+    def backpropagation(self):
+        self.cal_beta()
+        for conn in self.input_connection:
+            conn.backpropagation(self.output_value, self.beta)
+
 
 class Connection(object):
     def __init__(self):
         self.input_node = None
         self.output_node = None
-        self.Weight = 0
+        self.weight = 0
     def initilize_input_node(self, input_node):
         self.input_node = input_node
+        self.input_node.notify_output(self)
     def initilize_output_node(self, output_node):
         self.output_node = output_node
+        self.output_node.notify_input(self)
     def initilize_weight(self):
         self.weight = random.uniform(-1.0, 1.0)
 
@@ -62,17 +116,11 @@ class Connection(object):
     def print_output_node(self):
         print "\t", id(self.output_node), ":", self.weight
 
-class Bias(object):
-    def __init__(self):
-        self.output_value = 1
-        self.learning_rate = None
-    def set_learning_rate(self, learning_rate):
-        self.learning_rate = learning_rate
-    def return_output(self):
-        return self.output_value
-    def cal_delta_weight(self, higher_output, higher_beta):
-        return self.learning_rate * (1 - higher_output) * higher_beta
+    def receive_send_to_output(self, value):
+        self.output_node.receive_input(value * self.weight)
 
+    def backpropagation(self, higher_output, higher_beta):
+        self.input_node.
 
 class Network(object):
     def __init__(self):
@@ -155,17 +203,43 @@ class Network(object):
                 for connection in connections:
                     connection.print_output_node()
 
-
     def construct(self):
         self.built_input_connection()
         self.built_hidden_connection()
 
     def initilize_learning_rate(self, learning_rate):
-        pass
+        for input_node in self.input_layer.keys():
+            input_node.set_learning_rate(learning_rate)
+        for layer in self.hidden_layers:
+            for node in layer:
+                node.set_learning_rate(learning_rate)
+        for output_node in self.output_node_list:
+            output_node.set_learning_rate(learning_rate)
+
     def learning_pattern(self, input_1, input_2, output):
-        pass
+        self.input_node_list[0].input(input_1)
+        self.input_node_list[1].input(input_2)
+        self.output_node_list[0].init_desired_value(output)
+
     def epoch(self, num):
-        pass
+        for i in range(num):
+            self.learning_pattern(1,1,0)
+            for input_node in self.input_node_list:
+                input_node.start()
+
+            self.learning_pattern(0,0,0)
+            for input_node in self.input_node_list:
+                input_node.start()
+
+            self.learning_pattern(1,0,1)
+            for input_node in self.input_node_list:
+                input_node.start()
+
+            self.learning_pattern(0,1,1)
+            for input_node in self.input_node_list:
+                input_node.start()
+
+        self.print_architecture()
     def test(input_1, input_2):
         pass
 
@@ -178,9 +252,10 @@ if __name__ == "__main__":
     net.initilize_output_nodes(2)
     net.construct()
     net.print_architecture()
+    net.initilize_learning_rate(0.2)
+    net.epoch(1)
     #net.learning_pattern(1,1,0)
     #net.learning_pattern(0,0,0)
     #net.learning_pattern(1,0,1)
     #net.learning_pattern(0,1,1)
-    #net.epoch(500)
     #net.test(1,1)
