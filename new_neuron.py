@@ -18,9 +18,9 @@ class Neuron(object):
     def set_learning_rate(self, learning_rate):
         self.learning_rate = learning_rate
     def sigmoid(self):
-        #self.output_value = 1.0 / (1.0 + math.exp(-(self.receive_value + self.bias)))
+        self.output_value = 1.0 / (1.0 + math.exp(-(self.receive_value + self.bias)))
         #self.output_value = 1.0 + math.e ** (-1.0 * (self.receive_value + self.bias))
-        self.output_value = logistic.cdf(self.receive_value + self.bias)
+        #self.output_value = logistic.cdf(self.receive_value + self.bias)
     def cal_beta(self, weight, higher_output, higher_beta):
         self.beta += weight * (1 - higher_output) * higher_beta
     def return_beta(self):
@@ -35,7 +35,7 @@ class Neuron(object):
     def adjust_input_nodes_num(self, num):
         self.input_nodes_num = num
     def adjust_bias(self):
-        delta_bias = self.learning_rate * self.bias * (1 - self.output_value) * self.beta
+        delta_bias = self.learning_rate * (1 - self.output_value) * self.beta
         self.bias += delta_bias
     def notify_input(self, conn):
         if conn not in self.input_connection:
@@ -273,7 +273,7 @@ if __name__ == "__main__":
     net.construct()
     #net.print_architecture()
     net.initilize_learning_rate(0.2)
-    net.epoch(10000)
+    net.epoch(100000)
     net.test(1,1)
     net.test(0,0)
     net.test(1,0)
